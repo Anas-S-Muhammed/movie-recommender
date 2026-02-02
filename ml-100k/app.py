@@ -8,8 +8,8 @@ st.set_page_config(page_title="Movie Recommender", page_icon="🎬", layout="wid
 # Load data with caching so it doesn't reload every time
 @st.cache_data
 def load_data():
-    ratings = pd.read_csv('u.data', sep='\t', names=['user_id', 'movie_id', 'rating', 'timestamp'])
-    movies = pd.read_csv('u.item', sep='|', encoding='latin-1', 
+    ratings = pd.read_csv('ml-100k/u.data', sep='\t', names=['user_id', 'movie_id', 'rating', 'timestamp'])
+    movies = pd.read_csv('ml-100k/u.item', sep='|', encoding='latin-1', 
                          names=['movie_id', 'title', 'release_date', 'video_release', 'imdb_url'] + [f'genre_{i}' for i in range(19)],
                          usecols=['movie_id', 'title'])
     
