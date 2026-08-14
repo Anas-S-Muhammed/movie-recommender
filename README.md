@@ -1,190 +1,77 @@
-# 🎬 Movie Recommendation System
-# Movie Recommendation System
+# Movie Recommender
 
-A collaborative filtering-based movie recommender that suggests films based on user rating patterns. Built with Python and deployed as an interactive web application.
-An intelligent movie recommendation engine powered by collaborative filtering and machine learning. Discover your next favorite film based on what millions of viewers loved.
+Item-based collaborative filtering recommender built on the MovieLens 100K dataset, served through a Streamlit UI.
 
-## 🚀 Live Demo
-## Live Demo 
+Pick a movie, get back the N most similar titles ranked by cosine similarity over user rating patterns. No content metadata (genre, cast, plot) is used — the similarity is purely behavioral.
 
+## How it works
 
+1. Load `u.data` (100,000 ratings, 943 users) and `u.item` (1,682 movies), merge on `movie_id`.
+2. Pivot into a 943 × 1,682 user-movie ratings matrix.
+3. Fill missing ratings with 0 and compute cosine similarity between every pair of movie columns (transposed matrix), producing a 1,682 × 1,682 movie-movie similarity matrix.
+4. For a selected movie, sort its similarity row and return the top N (excluding itself).
 
-[Try it here!](YOUR_STREAMLIT_LINK_HERE)
+The whole pipeline is wrapped in `@st.cache_data`, so the matrix is built once per session instead of on every interaction.
 
-## 📖 About
-## The Problem
+This is memory-based CF, not model-based — there's no matrix factorization, no learned latent factors, just direct similarity on raw rating vectors.
 
-This project analyzes 100,000+ movie ratings to find patterns in user preferences and recommends similar movies. If you liked a particular film, the system identifies other movies that users with similar tastes also enjoyed.
-Ever spent 30 minutes scrolling through Netflix just to give up and watch The Office again? Yeah, me too. This project solves that by analyzing patterns in what people actually watch and enjoy.
+## Tech stack
 
-## ✨ Features
-## The Solution
+| Tool | Role |
+|---|---|
+| Python | Language |
+| Pandas | Loading, merging, pivoting the ratings data |
+| scikit-learn | `cosine_similarity` for the movie-movie similarity matrix |
+| Streamlit | UI layer and app hosting |
 
-- **Smart Recommendations**: Uses cosine similarity to find movies with similar rating patterns
-- **Interactive Interface**: Clean, user-friendly web app built with Streamlit
-- **Customizable Results**: Adjust the number of recommendations (5-20 movies)
-- **Real Dataset**: Powered by the MovieLens 100K dataset
-A recommendation system that:
-- Analyzes 100,000+ real user ratings across 1,682 movies
-- Uses collaborative filtering to find hidden patterns in viewing behavior
-- Delivers personalized recommendations in seconds through a clean web interface
-- No accounts, no tracking, no BS - just good movie suggestions
+That's the full runtime dependency list (`requirements.txt`). The notebook (`movie_recommender.ipynb`) additionally pulls in NumPy and Matplotlib for exploratory analysis — those aren't dependencies of the app itself.
 
-## 🛠️ Tech Stack
-## Quick Start
+## Project structure
 
-- **Python** - Core programming language
-- **Pandas** - Data manipulation and analysis
-- **Scikit-learn** - Machine learning (cosine similarity)
-- **Streamlit** - Web application framework
-- **Matplotlib** - Data visualization
-### Try It Live
-[Launch the App](YOUR_STREAMLIT_LINK_HERE)
+```
+movie-recommender/
+├── ml-100k/
+│   ├── app.py                    # Streamlit app — the actual product
+│   ├── movie_recommender.ipynb   # Exploratory notebook, not required to run the app
+│   ├── u.data                    # 100K ratings (user_id, movie_id, rating, timestamp)
+│   └── u.item                    # Movie metadata (id, title, genres, etc.)
+├── requirements.txt
+└── README.md
+```
 
-## 📊 How It Works
-### Run Locally
+## Running it locally
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/movie-recommender.git
+git clone https://github.com/Anas-S-Muhammed/movie-recommender.git
 cd movie-recommender
 pip install -r requirements.txt
 streamlit run ml-100k/app.py
 ```
 
-1. **Data Processing**: Loads and cleans 100K movie ratings
-2. **Matrix Creation**: Builds a user-movie rating matrix
-3. **Similarity Calculation**: Computes cosine similarity between movies based on rating patterns
-4. **Recommendation**: Returns top N most similar movies to your selection
-Your browser will open automatically at localhost:8501
+Opens at `localhost:8501`.
 
-## 💻 Run Locally
-```bash
-## Features
+## Live demo
 
-- **Smart Recommendations** - Cosine similarity algorithm finds movies with similar rating patterns
-- **Instant Results** - Sub-second response time with cached computations
-- **Clean UI** - Intuitive Streamlit interface - no clutter, just results
-- **Adjustable Output** - Control recommendation count (5-20 movies) via sidebar
-- **Smart Search** - Type-ahead search across 1,682 movies
-
-## How It Works
-
-### The Algorithm
-
-1. Load Data - 100K ratings from 943 users across 1,682 movies
-2. Build Matrix - User-Movie rating matrix (943 × 1,682)
-3. Calculate Similarity - Cosine similarity between all movie pairs
-4. Generate Recommendations - Return top-N most similar movies
-
-### Technical Deep Dive
-
-**Collaborative Filtering**: Instead of analyzing movie content (genre, actors, etc.), this system looks at behavior. If User A and User B both loved Movies X, Y, and Z, and User A also loved Movie W, there's a good chance User B will too.
-
-**Cosine Similarity**: Measures the angle between two vectors in n-dimensional space. A score of 1.0 = identical rating patterns, 0.0 = completely different.
-
-**Why It Works**: People with similar taste tend to like similar movies. By finding these patterns across thousands of users, we can make surprisingly accurate predictions.
-
-## Tech Stack
-
-### Core
-- Python 3.11 - Language
-- Pandas - Data wrangling and transformation
-- Scikit-learn - ML algorithms (cosine similarity)
-- NumPy - Numerical operations
-
-### Interface
-- Streamlit - Web framework for data apps
-- Matplotlib - Visualization (used in development)
-
-### Deployment
-- Streamlit Cloud - Free hosting with auto-deploy from GitHub
-- GitHub - Version control and CI/CD
-
-## Project Structure
-```
-movie-recommender/
-├── ml-100k/
-│   ├── app.py          # Main Streamlit application
-│   ├── u.data          # 100K ratings
-│   └── u.item          # Movie metadata
-├── requirements.txt     # Python dependencies
-└── README.md           # Project documentation
-```
+Not currently deployed — the placeholder link from the old README pointed nowhere. If you deploy this on Streamlit Community Cloud, drop the real URL here.
 
 ## Dataset
 
-**Source**: MovieLens 100K by GroupLens Research
+MovieLens 100K, from GroupLens Research (University of Minnesota). 100,000 ratings on a 1–5 scale, 943 users, 1,682 movies, each user has rated at least 20 movies. Standard benchmark dataset for recommender systems, non-commercial use license from GroupLens (see their [dataset page](https://grouplens.org/datasets/movielens/100k/) for terms).
 
-**Stats**:
-- 943 users
-- 1,682 movies
-- 100,000 ratings (scale: 1-5 stars)
-- Released: April 1998
-- Each user rated at least 20 movies
+## Known limitations
 
-**Why this dataset?**
-- Industry-standard benchmark for recommender systems
-- Clean, well-documented, perfect for learning
-- Large enough to be realistic, small enough to run fast
+- **Zero-imputation bias**: filling unrated entries with 0 rather than something like the movie's mean rating skews similarity toward popular movies with lots of ratings, since sparser vectors look more "different" by default.
+- **No evaluation**: there's no train/test split or offline metric (RMSE, precision@k) run against this — recommendation quality is eyeballed, not measured.
+- **Cold start**: new movies or users with no rating history can't be recommended or given recommendations, since the whole approach depends on an existing rating matrix.
+- **O(n²) similarity matrix**: fine at 1,682 movies, won't hold up at catalog sizes past the tens of thousands without approximate nearest-neighbor techniques (e.g. `annoy`, `faiss`) or a switch to model-based CF.
 
-## Performance
+## Possible improvements
 
-- Cold start time: ~2-3 seconds (first load)
-- Recommendation speed: <100ms (cached)
-- Memory footprint: ~50MB
-- Matrix dimensions: 943 × 1,682
-- Similarity calculations: 1.4M+ pairs
-
-## What I Learned
-
-### Technical Skills
-- Data preprocessing and cleaning with Pandas
-- Implementing collaborative filtering from scratch
-- Matrix operations and similarity calculations
-- Building production-ready ML applications
-- Deploying web apps to the cloud
-
-### Soft Skills
-- Breaking down complex problems into manageable steps
-- Reading documentation and troubleshooting errors
-- Shipping real projects instead of just watching tutorials
-- Pushing through the tutorial hell phase
-
-### Key Insight
-You don't learn by watching tutorials. You learn by building, breaking things, Googling error messages at 2am, and finally getting it to work.
-
-## Future Enhancements
-
-- Hybrid recommendations - Combine collaborative + content-based filtering
-- User profiles - Save favorite movies and get personalized suggestions
-- Movie posters - Integrate TMDb API for visual appeal
-- Trending section - Show what's popular right now
-- Batch recommendations - Input multiple liked movies for better accuracy
-- Explanation mode - Show why a movie was recommended
-- A/B testing - Compare different recommendation algorithms
-
+- Swap zero-fill for mean-centered ratings or an explicit missing-value mask before computing similarity.
+- Add an offline eval harness (train/test split, precision@k or RMSE) so changes to the algorithm can be compared against a baseline instead of judged by feel.
+- Move from memory-based CF to matrix factorization (SVD, ALS) for better scaling and to handle sparsity properly.
+- Hybrid with content-based signals (genre, release year) to soften the cold-start problem.
 
 ## License
 
-This project is open source and available under the MIT License.
-
-Dataset License: The MovieLens 100K dataset is provided by GroupLens Research and is available for non-commercial use.
-
-## Acknowledgments
-
-- GroupLens Research at the University of Minnesota for the MovieLens dataset
-- Streamlit team for making data apps incredibly easy to build
-- The internet for countless Stack Overflow answers at 3am
-
-## Connect With Me
-
-Built this while learning data science. If you found this helpful or want to chat about ML/data science:
-
-
-- GitHub: https://github.com/Anas-S-Muhammed
-- Email: Anas455057@gmail.com
-
----
-
-If you found this helpful, consider starring the repo!
-
-Made with coffee and late nights
+No license file is currently in this repo, so by default all rights are reserved and the code isn't legally reusable by others. Add a `LICENSE` file (MIT is the standard choice for a portfolio project like this) if you want it to actually be open source. The MovieLens dataset itself has its own non-commercial license from GroupLens, separate from whatever you pick for the code.
