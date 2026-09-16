@@ -1,77 +1,200 @@
-# Movie Recommender
+<div align="center">
 
-Item-based collaborative filtering recommender built on the MovieLens 100K dataset, served through a Streamlit UI.
+# 🎬 ReelMatch
 
-Pick a movie, get back the N most similar titles ranked by cosine similarity over user rating patterns. No content metadata (genre, cast, plot) is used — the similarity is purely behavioral.
+### Explainable hybrid movie recommendations from real audience behaviour
 
-## How it works
+[![CI](https://github.com/Anas-S-Muhammed/movie-recommender/actions/workflows/ci.yml/badge.svg)](https://github.com/Anas-S-Muhammed/movie-recommender/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.10%20to%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.49.1-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![License: MIT](https://img.shields.io/badge/Code%20License-MIT-green.svg)](LICENSE)
 
-1. Load `u.data` (100,000 ratings, 943 users) and `u.item` (1,682 movies), merge on `movie_id`.
-2. Pivot into a 943 × 1,682 user-movie ratings matrix.
-3. Fill missing ratings with 0 and compute cosine similarity between every pair of movie columns (transposed matrix), producing a 1,682 × 1,682 movie-movie similarity matrix.
-4. For a selected movie, sort its similarity row and return the top N (excluding itself).
+Select up to five movies you enjoy. ReelMatch combines collaborative filtering with genre similarity to build a transparent taste profile and rank relevant films from MovieLens 100K.
 
-The whole pipeline is wrapped in `@st.cache_data`, so the matrix is built once per session instead of on every interaction.
+</div>
 
-This is memory-based CF, not model-based — there's no matrix factorization, no learned latent factors, just direct similarity on raw rating vectors.
+---
 
-## Tech stack
+## Why this project exists
 
-| Tool | Role |
-|---|---|
-| Python | Language |
-| Pandas | Loading, merging, pivoting the ratings data |
-| scikit-learn | `cosine_similarity` for the movie-movie similarity matrix |
-| Streamlit | UI layer and app hosting |
+Most introductory recommenders fill missing ratings with zero and rank movies from a single title. That approach is easy to demonstrate, but it treats “not rated” as “disliked,” amplifies popularity bias and produces unstable similarities from small samples.
 
-That's the full runtime dependency list (`requirements.txt`). The notebook (`movie_recommender.ipynb`) additionally pulls in NumPy and Matplotlib for exploratory analysis — those aren't dependencies of the app itself.
+ReelMatch is a production-minded evolution of that baseline. It separates model code from the interface, corrects for individual rating habits, reduces low-evidence matches, supports multiple seed movies, adds reproducible offline evaluation and ships with tests, CI and container support.
 
-## Project structure
+## What it does
 
+- Builds a preference profile from **one to five movies** selected by the user.
+- Uses **adjusted-cosine item similarity** to correct for generous and strict raters.
+- Applies **significance weighting** so a match supported by only a few shared viewers is discounted.
+- Blends collaborative evidence with **19 MovieLens genre signals**.
+- Filters movies by minimum rating count to control recommendation reliability.
+- Shows the release year, genres, average audience rating, rating count and match score.
+- Caches the fitted model so Streamlit reruns remain responsive.
+- Keeps recommendation logic in a reusable, independently tested Python package.
+
+## System design
+
+```mermaid
+flowchart TD
+    A["MovieLens ratings"] --> C["User-mean centering"]
+    B["Movie metadata"] --> D["Genre vectors"]
+    C --> E["Adjusted cosine similarity"]
+    E --> F["Significance weighting"]
+    D --> G["Genre cosine similarity"]
+    F --> H["Weighted hybrid ranking"]
+    G --> H
+    H --> I["Streamlit recommendations"]
 ```
-movie-recommender/
-├── ml-100k/
-│   ├── app.py                    # Streamlit app — the actual product
-│   ├── movie_recommender.ipynb   # Exploratory notebook, not required to run the app
-│   ├── u.data                    # 100K ratings (user_id, movie_id, rating, timestamp)
-│   └── u.item                    # Movie metadata (id, title, genres, etc.)
-├── requirements.txt
-└── README.md
+
+### Ranking formula
+
+For a candidate movie, ReelMatch averages its similarity to every selected seed movie and combines the two signals:
+
+```text
+final_score = α × collaborative_score + (1 − α) × genre_score
 ```
 
-## Running it locally
+The interface exposes `α` as the **Audience-taste weight**. The default is `0.85`, prioritising behavioural evidence while retaining a small content signal. Collaborative similarity is further multiplied by:
+
+```text
+co_raters / (co_raters + shrinkage)
+```
+
+This prevents a near-perfect score based on only one or two shared raters from dominating the ranking.
+
+## Quick start
+
+### Requirements
+
+- Python 3.10–3.13
+- Git
+
+### Run locally
 
 ```bash
 git clone https://github.com/Anas-S-Muhammed/movie-recommender.git
 cd movie-recommender
-pip install -r requirements.txt
-streamlit run ml-100k/app.py
+
+python -m venv .venv
 ```
 
-Opens at `localhost:8501`.
+Activate the environment:
 
-## Live demo
+```bash
+# macOS / Linux
+source .venv/bin/activate
 
-Not currently deployed — the placeholder link from the old README pointed nowhere. If you deploy this on Streamlit Community Cloud, drop the real URL here.
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+```
+
+Install and launch:
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Open `http://localhost:8501` if Streamlit does not open it automatically.
+
+## Run with Docker
+
+```bash
+docker build -t reelmatch .
+docker run --rm -p 8501:8501 reelmatch
+```
+
+The container includes a health check at Streamlit's `/_stcore/health` endpoint.
+
+## Evaluation
+
+The repository includes a seeded leave-one-out evaluation. It removes one positively rated movie from each sampled user's history, fits on the remaining ratings, creates a profile from that user's other positive ratings and checks whether the hidden title appears in the top `K` results.
+
+```bash
+python scripts/evaluate.py --users 1000 --k 10 --seed 42
+```
+
+Reference result on the committed MovieLens data and default model settings:
+
+| Metric | Result |
+|---|---:|
+| Evaluated users | 942 |
+| Hit Rate@10 | 0.1136 |
+| Mean Reciprocal Rank | 0.0433 |
+
+These numbers are a reproducible baseline, not a claim of state-of-the-art performance. The evaluation searches the full eligible catalogue and is deliberately stricter than manually checking whether recommendations “look right.”
+
+## Testing and code quality
+
+Install development dependencies and run the same checks used by CI:
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .
+pytest
+```
+
+GitHub Actions runs linting and tests on Python 3.11 and 3.12 for every pull request and every push to `main`.
+
+## Project structure
+
+```text
+movie-recommender/
+├── .github/workflows/ci.yml       # Automated linting and tests
+├── .streamlit/config.toml         # Application theme and server config
+├── data/
+│   ├── u.data                     # 100,000 user–movie ratings
+│   └── u.item                     # Movie titles and genre metadata
+├── notebooks/
+│   └── movie_recommender.ipynb    # Original exploratory analysis
+├── scripts/
+│   └── evaluate.py                # Reproducible ranking evaluation
+├── src/movie_recommender/
+│   ├── __init__.py
+│   └── engine.py                  # Loading, fitting and recommendation logic
+├── tests/
+│   └── test_engine.py             # Unit tests for core behaviour
+├── app.py                         # Streamlit interface
+├── Dockerfile
+├── requirements.txt
+└── pyproject.toml
+```
 
 ## Dataset
 
-MovieLens 100K, from GroupLens Research (University of Minnesota). 100,000 ratings on a 1–5 scale, 943 users, 1,682 movies, each user has rated at least 20 movies. Standard benchmark dataset for recommender systems, non-commercial use license from GroupLens (see their [dataset page](https://grouplens.org/datasets/movielens/100k/) for terms).
+[MovieLens 100K](https://grouplens.org/datasets/movielens/100k/) contains 100,000 ratings from 943 users across 1,682 movies. Ratings use a 1–5 scale, and every user rated at least 20 films.
 
-## Known limitations
+The dataset is useful for reproducible research and portfolio work, but its catalogue is historical. It does not contain current releases, streaming availability, plot embeddings, cast data or modern user behaviour.
 
-- **Zero-imputation bias**: filling unrated entries with 0 rather than something like the movie's mean rating skews similarity toward popular movies with lots of ratings, since sparser vectors look more "different" by default.
-- **No evaluation**: there's no train/test split or offline metric (RMSE, precision@k) run against this — recommendation quality is eyeballed, not measured.
-- **Cold start**: new movies or users with no rating history can't be recommended or given recommendations, since the whole approach depends on an existing rating matrix.
-- **O(n²) similarity matrix**: fine at 1,682 movies, won't hold up at catalog sizes past the tens of thousands without approximate nearest-neighbor techniques (e.g. `annoy`, `faiss`) or a switch to model-based CF.
+The dataset has its own usage conditions and is not covered by this project's MIT licence. See [DATA_LICENSE.md](DATA_LICENSE.md) before redistributing it.
 
-## Possible improvements
+## Current limitations
 
-- Swap zero-fill for mean-centered ratings or an explicit missing-value mask before computing similarity.
-- Add an offline eval harness (train/test split, precision@k or RMSE) so changes to the algorithm can be compared against a baseline instead of judged by feel.
-- Move from memory-based CF to matrix factorization (SVD, ALS) for better scaling and to handle sparsity properly.
-- Hybrid with content-based signals (genre, release year) to soften the cold-start problem.
+- **Historical catalogue:** MovieLens 100K cannot recommend recent releases.
+- **Item cold start:** A new movie needs rating or genre metadata before it can be ranked meaningfully.
+- **Session-only preference:** The app builds a profile from selected movies and does not persist user accounts or feedback.
+- **Dense similarity matrices:** The current approach is appropriate for 1,682 titles but would need sparse or approximate-nearest-neighbour infrastructure for a large commercial catalogue.
+- **Offline metrics only:** Hit Rate and MRR do not measure long-term satisfaction, novelty, diversity or business impact.
 
-## License
+## Roadmap
 
-No license file is currently in this repo, so by default all rights are reserved and the code isn't legally reusable by others. Add a `LICENSE` file (MIT is the standard choice for a portfolio project like this) if you want it to actually be open source. The MovieLens dataset itself has its own non-commercial license from GroupLens, separate from whatever you pick for the code.
+- Add diversity-aware re-ranking to reduce near-duplicate recommendations.
+- Compare the hybrid baseline with matrix factorisation and implicit-feedback models.
+- Add coverage, novelty and NDCG to the evaluation suite.
+- Retrieve current movie metadata and artwork from an external API.
+- Package the engine behind a small REST API for non-Streamlit clients.
+- Track experiments and model parameters with a reproducible configuration layer.
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before making a substantial change. Algorithm changes should include tests and before/after evaluation metrics.
+
+## Licence
+
+The source code is available under the [MIT License](LICENSE). MovieLens data remains subject to the separate GroupLens terms described in [DATA_LICENSE.md](DATA_LICENSE.md).
+
+---
+
+<div align="center">
+Built by <a href="https://github.com/Anas-S-Muhammed">Anas Muhammed</a> with Python, pandas, scikit-learn and Streamlit.
+</div>
